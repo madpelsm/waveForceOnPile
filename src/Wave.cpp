@@ -16,7 +16,7 @@ void Wave::calculateWaveLength() {
     int i = 0;
     while (std::abs(L - mWaveLength) > mPrecision) {
         mWaveLength = L;
-        L = g * pow(mPeriod, 2) / (2 * M_PI) *
+        L = grav * pow(mPeriod, 2) / (2 * M_PI) *
             std::tanh(2 * M_PI * mWaterDepth / mWaveLength);
         i++;
     }
@@ -29,7 +29,7 @@ void Wave::calculateWaveLength() {
 double Wave::getHorizontal(double _depth, double _x, double _t) {
     if (!gotWaveLength) return 0;
     double costheta = std::cos(2 * M_PI * (_x / mWaveLength + _t / mPeriod));
-    return mHeight * 0.5 * g * mPeriod *
+    return mHeight * 0.5 * grav * mPeriod *
            std::cosh(2 * M_PI * (_depth + mWaterDepth) / mWaveLength) /
            (std::cosh(2 * M_PI * mWaterDepth / mWaveLength) * mWaveLength) *
            costheta;
@@ -38,7 +38,7 @@ double Wave::getHorizontal(double _depth, double _x, double _t) {
 double Wave::getVertical(double _depth, double _x, double _t) {
     if (!gotWaveLength) return 0;
     double sintheta = std::sin(2 * M_PI * (_x / mWaveLength + _t / mPeriod));
-    return mHeight * 0.5 * g * mPeriod *
+    return mHeight * 0.5 * grav * mPeriod *
            std::sinh(2 * M_PI * (_depth + mWaterDepth) / mWaveLength) /
            std::cosh(2 * M_PI * mWaterDepth / mWaveLength) * sintheta;
 }
@@ -49,11 +49,12 @@ double Wave::getHorizontalVelocity(double _depth, double _x, double _t) {
 double Wave::getVerticalVelocity(double _depth, double _x, double _t) {
     return getVertical(_depth, _x, _t);
 }
-//cos(2pi(x/L-t/T))'->-2pi/T(-sin(2pi(x/L-t/T))) -> 2pi/T*cos(2pi(x/L-t/T)-pi/2)
+// cos(2pi(x/L-t/T))'->-2pi/T(-sin(2pi(x/L-t/T))) ->
+// 2pi/T*cos(2pi(x/L-t/T)-pi/2)
 double Wave::getHorizontalAcceleration(double _depth, double _x, double _t) {
     return 2 * M_PI / mPeriod * getHorizontal(_depth, _x, _t + 0.25 * mPeriod);
 }
-//sin(2pi(x/L-t/T))'-> -2pi/T*cos(2pi(x/L-t/T))-> 2pi/T*sin(2pi(x/L-t/T)-pi/2)
+// sin(2pi(x/L-t/T))'-> -2pi/T*cos(2pi(x/L-t/T))-> 2pi/T*sin(2pi(x/L-t/T)-pi/2)
 double Wave::getVerticalAcceleration(double _depth, double _x, double _t) {
     return 2 * M_PI / mPeriod * getVertical(_depth, _x, _t + 0.25 * mPeriod);
 }

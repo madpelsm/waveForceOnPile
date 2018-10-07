@@ -1,7 +1,7 @@
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <iostream>
-#define _USE_MATH_DEFINES
-#define g 9.81
+#define grav 9.81
 
 class Wave {
    public:

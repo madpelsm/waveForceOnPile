@@ -1,17 +1,30 @@
 #include <morisson.h>
 #include <stdlib.h>
+#include <windowgui.h>
 #include <cstring>
 
-#define PARAM(X)                         \
-    if (#X == param) {                   \
-        X = argument;                    \
-        printf("Set %s to %f\n", #X, X); \
+#define PARAM(X)       \
+    if (#X == param) { \
+        X = argument;  \
     };
 
 double waveheight = 4, waterdepth = 10, period = 18, precision = 0.00001,
        pilediameter = 3, pileroughness = 0.00001, nu = 0.000001, timestep = 1,
-       tstart = 0, tend = 18, dz = 1, xlocation = 0, timeinstant = 6;
+       tstart = 0, tend = 0, dz = 1, xlocation = 0, timeinstant = 6,
+       overTCalcStore = 1;
 
+int width = 800, height = 600;
+bool writepermission = 1, GUI = 1;
+void updateParams(Wave *w, Pile *p, Morisson *m) {
+    w->setHeight(waveheight);
+    w->setWaterDepth(waterdepth);
+    w->setPeriod(period);
+    w->setPrecision(precision);
+    p->setSurfaceRoughness(pileroughness);
+    w->calculateWaveLength();
+    m->setNu(nu);
+    m->setTimestep(timestep);
+}
 void setParameter(std::string _input) {
     std::string param = _input.substr(0, _input.find("="));
     double argument = std::atof(_input.substr(_input.find("=") + 1).c_str());
@@ -19,7 +32,8 @@ void setParameter(std::string _input) {
         "waveheight",   "waterdepth",    "period", "precision",
         "pilediameter", "pileroughness", "nu",     "timestep",
         "tstart",       "tend",          "dz",     "xlocation",
-        "timeinstant"};
+        "timeinstant",  "height",        "width",  "writepermission",
+        "GUI"};
     if (std::find(validCommands.begin(), validCommands.end(), param) !=
         validCommands.end()) {
         PARAM(waveheight);
@@ -35,16 +49,22 @@ void setParameter(std::string _input) {
         PARAM(dz);
         PARAM(xlocation);
         PARAM(timeinstant);
+        PARAM(height);
+        PARAM(width);
+        PARAM(writepermission);
+        PARAM(GUI);
+        printf("set %s to %f\n", param.c_str(), argument);
     }
 
     if (param.compare("help") == 0) {
-        std::string howto =
-            "Possible commands are:\n"
-            "\nwaveheight\nwaterdepth\nperiod\nprecision\npilediameter\npilerou"
-            "ghness\nnu\ntimestep\ntstart\ntend\ndz (depth "
-            "interval)\nxlocation\ntime\n\nuse "
-            "for example "
-            "waveheight=12\n\n********************\n";
+        std::string howto = "Possible commands are:\n";
+        for (auto x : validCommands) {
+            howto += x + "\n";
+        }
+        howto +=
+            "for example waveheight=12\nwritepermission=1 or "
+            "0\n\n********************\n";
+
         printf("%s\n", howto.c_str());
     }
 }
@@ -53,23 +73,124 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < argc; i++) {
         setParameter(argv[i]);
     }
+    Wave *wave = new Wave();
+    Pile *pile = new Pile(pilediameter);
+    Morisson *morisson1 = new Morisson(pile, wave);
+    updateParams(wave, pile, morisson1);
 
-    Wave wave;
+    GUIWindow ge1(width, height, "waves App");
+    /**********/
+    // Wave info
+    Panel waves("wave information");
 
-    wave.setHeight(waveheight);
-    wave.setWaterDepth(waterdepth);
-    wave.setPeriod(period);
-    wave.setPrecision(precision);
-    Pile pile(pilediameter);
-    pile.setSurfaceRoughness(pileroughness);
+    Variable waveH("waveheight", &waveheight);
+    Variable waterD("waterdepth", &waterdepth);
+    Variable waveT("period", &period);
+    Variable waveP("precision", &precision);
+    Variable visco("nu", &nu);
 
-    wave.calculateWaveLength();
-    Morisson morisson1(&pile, &wave);
-    morisson1.setNu(nu);
+    std::vector<Variable *> waveVars = {&waveH, &waterD, &waveT, &waveP,
+                                        &visco};
+    waves.addVariables(&waveVars);
 
-    morisson1.calculateForces(dz, timeinstant);
-    morisson1.setTimestep(timestep);
-    morisson1.calculateForcesOverTime(tstart, tend, dz, xlocation);
-    morisson1.writeToFile();
+    ge1.addPanel(&waves);
+    //*********/
+    // Pile info
+    Panel piles("pile information");
+
+    piles.setPanelPosition(0, 415);
+    Variable PileD("pilediameter", &pilediameter);
+    Variable PileR("pileroughness", &pileroughness);
+
+    std::vector<Variable *> pileVars = {&PileD, &PileR};
+    piles.addVariables(&pileVars);  // why copy??
+
+    ge1.addPanel(&piles);
+
+    /*******/
+    // calculation settings
+    Panel calcSettings("Calculation Settings");
+
+    calcSettings.setPanelPosition(0, 180);
+    Variable timeStep("timestep", &timestep);
+    Variable tStrt("start time", &tstart);
+    Variable tEndt("end time", &tend);
+    Variable stepSize("stepsize", &dz);
+    Variable xlo("x location", &xlocation);
+    Variable Tinstant("Time point", &timeinstant);
+    Variable IntervalCalcStore("Store dt calcs", &overTCalcStore);
+
+    std::vector<Variable *> calcVars = {&timeStep,         &tStrt, &tEndt,
+                                        &stepSize,         &xlo,   &Tinstant,
+                                        &IntervalCalcStore};
+
+    calcSettings.addVariables(&calcVars);
+    ge1.addPanel(&calcSettings);
+    //  now triggered by button
+    ButtonPanel simpleCalc("calculate at t");
+    simpleCalc.setPosition(170, 0);
+
+    ge1.addButtonPanel(&simpleCalc);
+    // simpleCalc.buttonHelp->addButton("test", []() {});
+
+    ge1.makeGUIWindow();
+    printf("value of calcstore: %f\n", overTCalcStore);
+    if (overTCalcStore != 1.0) {
+        morisson1->mOverTCalcStorage = false;
+    } else {
+        morisson1->mOverTCalcStorage = true;
+    }
+    // TIME TO PLACE BUTTONS
+    simpleCalc.buttonHelp->addButton(
+        simpleCalc.mName, [&morisson1, &ge1, &pile, &wave]() {
+            updateParams(wave, pile, morisson1);
+            morisson1->calculateForces(dz, timeinstant);
+            MessageDialog *m = new MessageDialog(
+                ge1.screen, MessageDialog::Type::Warning, "Calculated!",
+                "Calculation completed, now press 'store calculation'", "ok");
+        });
+    simpleCalc.buttonHelp->addButton(
+        "store calculation", [&morisson1]() { morisson1->storeCalculation(); });
+    simpleCalc.buttonHelp->addButton("Calculate over time", [&morisson1, &wave,
+                                                             &pile, &ge1]() {
+        if (tend != tstart) {
+            updateParams(wave, pile, morisson1);
+            std::string dialogText = (overTCalcStore == 1)
+                                         ? "The calculation has been stored"
+                                         : "The calculation wasn't stored";
+            morisson1->calculateForcesOverTime(tstart, tend, dz, xlocation);
+            MessageDialog *m =
+                new MessageDialog(ge1.screen, MessageDialog::Type::Warning,
+                                  "Calculation Completed!", dialogText, "ok");
+
+        } else {
+            MessageDialog *m = new MessageDialog(
+                ge1.screen, MessageDialog::Type::Warning, "start=end",
+                "Please chose the end time different from the starttime", "ok");
+        }
+    });
+    simpleCalc.buttonHelp->addButton("export calculation", [&morisson1]() {
+        std::string fileLoc = file_dialog({{"csv", ""}}, true);
+        printf("%s\n", fileLoc.c_str());
+        morisson1->writeToFile(fileLoc);
+    });
+    if (writepermission) {
+        morisson1->mOverTCalcStorage = true;
+    }
+    if (tstart != tend) {
+        morisson1->calculateForcesOverTime(tstart, tend, dz, xlocation);
+    }
+
+    morisson1->calculateForces(dz, timeinstant);
+    if (writepermission) {
+        morisson1->storeCalculation();
+        morisson1->writeToFile();
+    }
+
+    // make window
+    if (GUI) {
+        ge1.startLoop();
+    }
+    delete morisson1, wave, pile;
     return 0;
 }

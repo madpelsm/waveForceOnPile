@@ -1,5 +1,5 @@
-#include <pile.h>
 #include <Wave.h>
+#include <pile.h>
 #include <fstream>
 #include <iostream>
 #include <ostream>
@@ -19,6 +19,7 @@ class Morisson {
     std::string mForcesStringM, mForcesStringD;
     std::string mForcesInTime;
     std::vector<std::string> mCalculationSteps;
+    bool mOverTCalcStorage = true;
 
     std::string mForcesMoverT, mForcesDoverT;
 

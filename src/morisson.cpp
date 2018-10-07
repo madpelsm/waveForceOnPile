@@ -100,7 +100,6 @@ void Morisson::calculateForces(double _dz, double _time, double _x) {
     }
     printForcesD();
     printForcesM();
-    storeCalculation();
 }
 
 void Morisson::printForcesD() {
@@ -124,6 +123,8 @@ void Morisson::writeToFile(std::string _filename) {
     Ofile.open(_filename);
     Ofile << outputText;
     Ofile.close();
+
+    printf("writen to file\n");
 }
 void Morisson::storeCalculation() {
     std::string outputText;
@@ -157,6 +158,8 @@ void Morisson::storeCalculation() {
                   std::to_string(mFM_tot) + "\n";
     outputText += "Total Force: ," + std::to_string(mTotalHorizontal) + "\n";
     mCalculationSteps.push_back(outputText);
+
+    printf("Calculation stored\n");
 }
 
 void Morisson::calculateForcesOverTime(double _starTime, double _endTime,
@@ -170,6 +173,7 @@ void Morisson::calculateForcesOverTime(double _starTime, double _endTime,
         "Force[N],Total Force [N], Eta Wave [m]\n";
     for (size_t i = 0; i < numberOfIntervals; i++) {
         calculateForces(dz, t, _x);
+        if (mOverTCalcStorage == true) storeCalculation();
         mForcesDoverT.push_back(mFD_tot);
         mForcesMoverT.push_back(mFM_tot);
         mForcesInTime += std::to_string(t) + "," + std::to_string(mFD_tot) +
@@ -178,6 +182,7 @@ void Morisson::calculateForcesOverTime(double _starTime, double _endTime,
                          std::to_string(mEtaWaveHeight) + "\n";
         t += mTimestep;
     }
+    printf("calculated over time\n");
 }
 
 void Morisson::setTimestep(double _t) { mTimestep = _t; }
