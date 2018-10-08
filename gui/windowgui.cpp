@@ -40,3 +40,5 @@ void GUIWindow::drawButtons() {
         x->drawButton(screen);
     }
 }
+
+void GUIWindow::refresh() {}

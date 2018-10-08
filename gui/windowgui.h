@@ -21,4 +21,5 @@ class GUIWindow {
     void drawPanels();
     void drawButtons();
     void startLoop();
+    void refresh();
 };

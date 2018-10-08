@@ -1,33 +1,27 @@
+#include <loader.h>
 #include <morisson.h>
+#include <saver.h>
 #include <stdlib.h>
 #include <windowgui.h>
 #include <cstring>
 
-#define PARAM(X)       \
-    if (#X == param) { \
-        X = argument;  \
-    };
-
-double waveheight = 4, waterdepth = 10, period = 18, precision = 0.00001,
-       pilediameter = 3, pileroughness = 0.00001, nu = 0.000001, timestep = 1,
-       tstart = 0, tend = 0, dz = 1, xlocation = 0, timeinstant = 6,
-       overTCalcStore = 1, currentvelocity = 0, impact_angle = -1.0;
-
+std::map<std::string, double> parameters;
+std::string defaultsave = "save.txt";
 int width = 355, height = 600;
-bool writepermission = 1, GUI = 1, with_impact = true;
+bool writepermission = 0, GUI = 1, with_impact = true;
 void updateParams(Wave *w, Pile *p, Morisson *m) {
-    w->setHeight(waveheight);
-    w->setWaterDepth(waterdepth);
-    w->setPeriod(period);
-    w->setPrecision(precision);
-    p->setSurfaceRoughness(pileroughness);
-    p->setDiameter(pilediameter);
+    w->setHeight(parameters["waveheight"]);
+    w->setWaterDepth(parameters["waterdepth"]);
+    w->setPeriod(parameters["period"]);
+    w->setPrecision(parameters["precision"]);
+    p->setSurfaceRoughness(parameters["pileroughness"]);
+    p->setDiameter(parameters["pilediameter"]);
     w->calculateWaveLength();
-    w->setCurrent(currentvelocity);
-    m->setNu(nu);
-    m->setImpactAngle(impact_angle);
-    m->setTimestep(timestep);
-    m->setTimstepCalcStorage(overTCalcStore);
+    w->setCurrent(parameters["currentvelocity"]);
+    m->setNu(parameters["nu"]);
+    m->setImpactAngle(parameters["impact_angle"]);
+    m->setTimestep(parameters["timestep"]);
+    m->setTimstepCalcStorage(parameters["overTCalcStore"]);
 }
 void setParameter(std::string _input) {
     std::string param = _input.substr(0, _input.find("="));
@@ -44,26 +38,13 @@ void setParameter(std::string _input) {
                                               "impact_angle"};
     if (std::find(validCommands.begin(), validCommands.end(), param) !=
         validCommands.end()) {
-        PARAM(waveheight);
-        PARAM(waterdepth);
-        PARAM(period);
-        PARAM(precision);
-        PARAM(pilediameter);
-        PARAM(pileroughness);
-        PARAM(nu);
-        PARAM(timestep);
-        PARAM(tstart);
-        PARAM(tend);
-        PARAM(dz);
-        PARAM(xlocation);
-        PARAM(timeinstant);
-        PARAM(height);
-        PARAM(width);
-        PARAM(writepermission);
-        PARAM(GUI);
-        PARAM(currentvelocity);
-        PARAM(impact_angle);
+        parameters[param.c_str()] = argument;
         printf("set %s to %f\n", param.c_str(), argument);
+    }
+
+    else if (param == "defaultsave") {
+        defaultsave = _input.substr(_input.find("=") + 1);
+        printf("Loading default savefile:%s \n", defaultsave.c_str());
     }
 
     if (param.compare("help") == 0) {
@@ -71,6 +52,7 @@ void setParameter(std::string _input) {
         for (auto x : validCommands) {
             howto += x + "\n";
         }
+        howto += "defaultsave\n";
         howto +=
             "for example waveheight=12\nwritepermission=1 or "
             "0\n\n********************\n";
@@ -83,22 +65,34 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < argc; i++) {
         setParameter(argv[i]);
     }
+    // default load file
+    //
+    if (argc > 1) {
+        Loader *dr = new Loader(defaultsave);
+        dr->parseData();
+        parameters = dr->get_data();
+        delete dr;
+        width = parameters["width"] > 0 ? parameters["width"] : width;
+        height = parameters["height"] > 0 ? parameters["height"] : height;
+        printf("Arguments detected\n");
+    }
+    for (size_t i = 0; i < argc; i++) {
+        setParameter(argv[i]);
+    }
     Wave *wave = new Wave();
-    Pile *pile = new Pile(pilediameter);
+    Pile *pile = new Pile(parameters["pilediameter"]);
     Morisson *morisson1 = new Morisson(pile, wave);
-    updateParams(wave, pile, morisson1);
 
     GUIWindow ge1(width, height, "waves App");
     /**********/
     // Wave info
     Panel waves("wave information");
-
-    Variable waveH("waveheight", &waveheight);
-    Variable waterD("waterdepth", &waterdepth);
-    Variable waveT("period", &period);
-    Variable waveP("precision", &precision);
-    Variable visco("nu", &nu);
-    Variable currentVel("Current [m/s]", &currentvelocity);
+    Variable waveH("waveheight", &parameters["waveheight"]);
+    Variable waterD("waterdepth", &parameters["waterdepth"]);
+    Variable waveT("period", &parameters["period"]);
+    Variable waveP("precision", &parameters["precision"]);
+    Variable visco("nu", &parameters["nu"]);
+    Variable currentVel("Current [m/s]", &parameters["currentvelocity"]);
 
     std::vector<Variable *> waveVars = {&waveH, &waterD, &waveT,
                                         &waveP, &visco,  &currentVel};
@@ -110,8 +104,8 @@ int main(int argc, char *argv[]) {
     Panel piles("pile information");
 
     piles.setPanelPosition(0, 450);
-    Variable PileD("pilediameter", &pilediameter);
-    Variable PileR("pileroughness", &pileroughness);
+    Variable PileD("pilediameter", &parameters["pilediameter"]);
+    Variable PileR("pileroughness", &parameters["pileroughness"]);
 
     std::vector<Variable *> pileVars = {&PileD, &PileR};
     piles.addVariables(&pileVars);  // why copy??
@@ -123,52 +117,53 @@ int main(int argc, char *argv[]) {
     Panel calcSettings("Calculation Settings");
 
     calcSettings.setPanelPosition(0, 200);
-    Variable timeStep("timestep", &timestep);
-    Variable tStrt("start time", &tstart);
-    Variable tEndt("end time", &tend);
-    Variable stepSize("stepsize", &dz);
-    Variable xlo("x location", &xlocation);
-    Variable Tinstant("Time point", &timeinstant);
-    Variable IntervalCalcStore("Store dt calcs", &overTCalcStore);
-    Variable impactAngle("impact angle (deg)", &impact_angle);
+    Variable timeStep("timestep", &parameters["timestep"]);
+    Variable tStrt("start time", &parameters["tstart"]);
+    Variable tEndt("end time", &parameters["tend"]);
+    Variable stepSize("stepsize", &parameters["dz"]);
+    Variable xlo("x location", &parameters["xlocation"]);
+    Variable Tinstant("Time point", &parameters["timeinstant"]);
+    Variable IntervalCalcStore("Store dt calcs", &parameters["overTCalcStore"]);
+    Variable impactAngle("impact angle (deg)", &parameters["impact_angle"]);
 
     std::vector<Variable *> calcVars = {
         &timeStep,          &tStrt,      &tEndt, &stepSize, &xlo, &Tinstant,
         &IntervalCalcStore, &impactAngle};
     calcSettings.addVariables(&calcVars);
     ge1.addPanel(&calcSettings);
-    //  now triggered by button
     ButtonPanel simpleCalc("calculate at t");
     simpleCalc.setPosition(170, 0);
 
     ge1.addButtonPanel(&simpleCalc);
 
     ge1.makeGUIWindow();
-    printf("value of calcstore: %f\n", overTCalcStore);
-    if (overTCalcStore != 1.0) {
+    if (parameters["overTCalcStore"] != 1.0) {
         morisson1->mOverTCalcStorage = false;
     } else {
         morisson1->mOverTCalcStorage = true;
     }
     // TIME TO PLACE BUTTONS
-    simpleCalc.buttonHelp->addButton(
-        simpleCalc.mName, [&morisson1, &ge1, &pile, &wave]() {
-            updateParams(wave, pile, morisson1);
-            morisson1->calculateForces(dz, timeinstant);
-            MessageDialog *m = new MessageDialog(
-                ge1.screen, MessageDialog::Type::Warning, "Calculated!",
-                "Calculation completed, now press 'store calculation'", "ok");
-        });
+    simpleCalc.buttonHelp->addButton(simpleCalc.mName, [&morisson1, &ge1, &pile,
+                                                        &wave]() {
+        updateParams(wave, pile, morisson1);
+        morisson1->calculateForces(parameters["dz"], parameters["timeinstant"]);
+        MessageDialog *m = new MessageDialog(
+            ge1.screen, MessageDialog::Type::Warning, "Calculated!",
+            "Calculation completed, now press 'store calculation'", "ok");
+    });
     simpleCalc.buttonHelp->addButton(
         "store calculation", [&morisson1]() { morisson1->storeCalculation(); });
     simpleCalc.buttonHelp->addButton("Calculate over time", [&morisson1, &wave,
                                                              &pile, &ge1]() {
-        if (tend != tstart) {
+        if (parameters["tend"] != parameters["tstart"]) {
             updateParams(wave, pile, morisson1);
-            std::string dialogText = (overTCalcStore == 1)
-                                         ? "The calculation has been stored"
-                                         : "The calculation wasn't stored";
-            morisson1->calculateForcesOverTime(tstart, tend, dz, xlocation);
+            std::string dialogText =
+                (parameters["overTCalcStore"] == 1)
+                    ? "The calculation has been stored"
+                    : "The intermediate calculations weren't stored";
+            morisson1->calculateForcesOverTime(
+                parameters["tstart"], parameters["tend"], parameters["dz"],
+                parameters["xlocation"]);
             MessageDialog *m =
                 new MessageDialog(ge1.screen, MessageDialog::Type::Warning,
                                   "Calculation Completed!", dialogText, "ok");
@@ -184,22 +179,36 @@ int main(int argc, char *argv[]) {
         printf("%s\n", fileLoc.c_str());
         morisson1->writeToFile(fileLoc);
     });
-    if (writepermission) {
-        morisson1->mOverTCalcStorage = true;
-    }
-    if (tstart != tend) {
-        morisson1->calculateForcesOverTime(tstart, tend, dz, xlocation);
-    }
-
-    morisson1->calculateForces(dz, timeinstant);
-    if (writepermission) {
-        morisson1->storeCalculation();
-        morisson1->writeToFile();
-    }
+    simpleCalc.buttonHelp->addButton(
+        "Load Save", [&morisson1, &pile, &wave, &ge1]() {
+            std::string fileLoc = file_dialog({{"txt", ""}}, false);
+            printf("%s\n", fileLoc.c_str());
+            Loader ldrT(fileLoc);
+            ldrT.parseData();
+            parameters = ldrT.get_data();
+            updateParams(wave, pile, morisson1);
+            ge1.refresh();
+        });
+    simpleCalc.buttonHelp->addButton("Save settings", []() {
+        std::string fileLoc = file_dialog({{"txt", ""}}, true);
+        Saver svr(parameters);
+        svr.save_data_to_file(fileLoc);
+    });
 
     // make window
-    if (GUI) {
+    if (parameters["GUI"] != 0) {
         ge1.startLoop();
+    }
+    updateParams(wave, pile, morisson1);
+    if (parameters["writepermission"]) {
+        morisson1->mOverTCalcStorage = true;
+
+        morisson1->calculateForces(parameters["dz"], parameters["timeinstant"]);
+        morisson1->storeCalculation();
+        morisson1->writeToFile();
+        morisson1->calculateForcesOverTime(parameters["tstart"],
+                                           parameters["tend"], parameters["dz"],
+                                           parameters["xlocation"]);
     }
     delete morisson1, wave, pile;
     return 0;

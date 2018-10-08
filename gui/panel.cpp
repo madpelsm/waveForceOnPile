@@ -36,13 +36,14 @@ void Panel::setPanelPosition(int _x, int _y) {
     y = _y;
 }
 
+
 ButtonPanel::ButtonPanel() {}
 ButtonPanel::~ButtonPanel() { delete buttonHelp; }
 void ButtonPanel::drawButton(Screen *_sc) {
     buttonHelp = new FormHelper(_sc);
     ref<Window> window = buttonHelp->addWindow(Eigen::Vector2i(x, y), mName);
     buttonHelp->addGroup("");
-    }
+}
 
 ButtonPanel::ButtonPanel(std::string _name) : mName(_name) {}
 

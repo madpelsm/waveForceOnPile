@@ -157,14 +157,15 @@ void Morisson::storeCalculation() {
                   std::to_string(mPile->mDiameter) + ",Pile Roughness:," +
                   std::to_string(mPile->mSurfaceRoughness) + "\nMorisson is,";
     outputText += (isMorissonValid() == true) ? "Valid" : "Not Valid";
-    outputText += "Drag coefficient:," + std::to_string(mDragCoefficient) +
+    outputText += ",Drag coefficient:," + std::to_string(mDragCoefficient) +
                   ",Inertia Coefficient:," +
                   std::to_string(mInertiaCoefficient) + ",Reynolds:," +
                   std::to_string(mReynolds) + "\n";
 
     outputText += "\nWave data,time:," + std::to_string(mLastTime) +
                   ",location:," + std::to_string(mLastPlace) + "\nPeriod:," +
-                  std::to_string(mWave->mPeriod) + ",Wavelength:," +
+                  std::to_string(mWave->mPeriod) + ",waveheight:, " +
+                  std::to_string(mWave->mHeight) + ",Wavelength:," +
                   std::to_string(mWave->mWaveLength) + ",waterdepth:," +
                   std::to_string(mWave->mWaterDepth) + ", eta wave height:," +
                   std::to_string(mEtaWaveHeight) + "\n" + "Celerity m/s," +
@@ -218,8 +219,6 @@ void Morisson::calculateForcesOverTime(double _starTime, double _endTime,
     if (m_impactAngle != -1) {
         mt_max = find_time_of_max();
         int index_max_totForce = (int)(mt_max / mTimestep);
-        printf("force at %d: %f\n", index_max_totForce,
-               mForcesTotOverT[index_max_totForce]);
         mForcesTotOverT[index_max_totForce] += max_impact();
     }
     print_timecalculation();
