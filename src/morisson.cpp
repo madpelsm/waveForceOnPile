@@ -26,10 +26,22 @@ void Morisson::calculateCsReynolds() {
         mInertiaCoefficient = 1.5;
         mDragCoefficient = 0.7;
     } else {
-        mInertiaCoefficient = (2.5 + mReynolds * 0.00001) * 0.5;
-        std::cout << "mInertiaCoefficient: " << mInertiaCoefficient
-                  << std::endl;
-        mDragCoefficient = 1;
+        // interpolate
+        mInertiaCoefficient = 2.5 - mReynolds * 0.00001;
+
+        mDragCoefficient = (mReynolds - 250000) * (0.7 - 1.2) / (250000) + 1.2;
+    }
+    adjustCoefficientsForRoughtness();
+}
+
+void Morisson ::adjustCoefficientsForRoughtness() {
+    double kD = mPile->mSurfaceRoughness / mPile->mDiameter;
+    if (kD > 0.002) {
+        mDragCoefficient *= 1.5;
+        mInertiaCoefficient *= 0.6;
+    } else if (kD <= 0.0 - 2 && kD > 0.0001) {
+        mDragCoefficient *= 1.25;
+        mInertiaCoefficient *= 0.8;
     }
 }
 
@@ -41,6 +53,14 @@ double Morisson::calculateHorizontalForce_D(double _depth, double dz,
                  horizontalWaveVelocity * std::abs(horizontalWaveVelocity) * dz;
     mHorVelocities.push_back(horizontalWaveVelocity);
     return F_D;
+}
+
+void Morisson::setTimstepCalcStorage(double _toggle) {
+    if (_toggle != 1.0) {
+        mOverTCalcStorage = false;
+    } else {
+        mOverTCalcStorage = true;
+    }
 }
 
 double Morisson::calculateHorizontalForce_M(double _depth, double dz,
@@ -66,12 +86,14 @@ void Morisson::calculateForces(double _dz, double _time, double _x) {
     mAccelerations.clear();
     mHorVelocities.clear();
     mDepths.clear();
+    mForcesDM.clear();
 
     mAccelerations.reserve(numberOfIntervals);
     mHorVelocities.reserve(numberOfIntervals);
     mForcesM.reserve(numberOfIntervals);
     mForcesD.reserve(numberOfIntervals);
     mDepths.reserve(numberOfIntervals);
+    mForcesDM.reserve(numberOfIntervals);
 
     mLastTime = _time;
     mLastPlace = _x;
@@ -93,13 +115,16 @@ void Morisson::calculateForces(double _dz, double _time, double _x) {
         mFM_tot += mForcesM[i];
         mFD_tot += mForcesD[i];
         mDepths.push_back(depth);
+        mForcesDM.push_back(mForcesD[i] + mForcesM[i]);
 
-        mTotalHorizontal += (mForcesD[i] + mForcesM[i]);
+        mTotalHorizontal += mForcesDM[i];
 
         depth -= dz;
     }
     printForcesD();
     printForcesM();
+    calculateWaveImpact();
+    mImpactsOverT.push_back(mImpactForce);
 }
 
 void Morisson::printForcesD() {
@@ -131,18 +156,21 @@ void Morisson::storeCalculation() {
     outputText += "Pile data\nPile Diameter:," +
                   std::to_string(mPile->mDiameter) + ",Pile Roughness:," +
                   std::to_string(mPile->mSurfaceRoughness) + "\nMorisson is,";
+    outputText += (isMorissonValid() == true) ? "Valid" : "Not Valid";
     outputText += "Drag coefficient:," + std::to_string(mDragCoefficient) +
                   ",Inertia Coefficient:," +
                   std::to_string(mInertiaCoefficient) + ",Reynolds:," +
                   std::to_string(mReynolds) + "\n";
-    outputText += (isMorissonValid() == true) ? "Valid" : "Not Valid";
 
     outputText += "\nWave data,time:," + std::to_string(mLastTime) +
                   ",location:," + std::to_string(mLastPlace) + "\nPeriod:," +
                   std::to_string(mWave->mPeriod) + ",Wavelength:," +
                   std::to_string(mWave->mWaveLength) + ",waterdepth:," +
                   std::to_string(mWave->mWaterDepth) + ", eta wave height:," +
-                  std::to_string(mEtaWaveHeight) + "\n";
+                  std::to_string(mEtaWaveHeight) + "\n" + "Celerity m/s," +
+                  std::to_string(mWave->mCelerity) + ",wave impact:," +
+                  std::to_string(mImpactForce) + ",impact angle (deg)," +
+                  std::to_string(m_impactAngle) + "\n";
     outputText +=
         "Drag Force [N] , Ineria Force [N],Acceleration "
         "[m/s^2],HorVelocity[m/s],Depth [m]\n";
@@ -165,24 +193,77 @@ void Morisson::storeCalculation() {
 void Morisson::calculateForcesOverTime(double _starTime, double _endTime,
                                        double dz, double _x) {
     int numberOfIntervals = (_endTime - _starTime) / mTimestep + 1;
+    mForcesDoverT.clear();
+    mForcesMoverT.clear();
+    mEtaWaveHeightOverT.clear();
+    mImpactsOverT.clear();
+    mForcesTotOverT.clear();
+
     mForcesDoverT.reserve(numberOfIntervals);
     mForcesMoverT.reserve(numberOfIntervals);
+    mEtaWaveHeightOverT.reserve(numberOfIntervals);
+    mImpactsOverT.reserve(numberOfIntervals);
+    mForcesTotOverT.reserve(numberOfIntervals);
+
     double t = _starTime;
-    mForcesInTime =
-        "Wave forces over time\n time [s],Drag Force [N], Inertia "
-        "Force[N],Total Force [N], Eta Wave [m]\n";
     for (size_t i = 0; i < numberOfIntervals; i++) {
         calculateForces(dz, t, _x);
         if (mOverTCalcStorage == true) storeCalculation();
         mForcesDoverT.push_back(mFD_tot);
         mForcesMoverT.push_back(mFM_tot);
-        mForcesInTime += std::to_string(t) + "," + std::to_string(mFD_tot) +
-                         "," + std::to_string(mFM_tot) + "," +
-                         std::to_string(mFD_tot + mFM_tot) + "," +
-                         std::to_string(mEtaWaveHeight) + "\n";
+        mForcesTotOverT.push_back(mFM_tot + mFD_tot);
+        mEtaWaveHeightOverT.push_back(mEtaWaveHeight);
         t += mTimestep;
     }
-    printf("calculated over time\n");
+    if (m_impactAngle != -1) {
+        mt_max = find_time_of_max();
+        int index_max_totForce = (int)(mt_max / mTimestep);
+        printf("force at %d: %f\n", index_max_totForce,
+               mForcesTotOverT[index_max_totForce]);
+        mForcesTotOverT[index_max_totForce] += max_impact();
+    }
+    print_timecalculation();
 }
 
 void Morisson::setTimestep(double _t) { mTimestep = _t; }
+
+void Morisson::calculateWaveImpact() {
+    mImpactForce = 0.5 * lambda * mEtaWaveHeight * 2 * M_PI * mPile->mDiameter *
+                   mWave->mCelerity * mWave->mCelerity * mRhoWater;
+}
+void Morisson::print_timecalculation() {
+    mForcesInTime =
+        "Wave forces over time\n time [s],Drag Force [N], Inertia "
+        "Force[N],Total Force [N],ImpactForce [N], Eta Wave [m]\n";
+    for (size_t i = 0; i < mForcesTotOverT.size(); i++) {
+        mForcesInTime += std::to_string(i * mTimestep) + "," +
+                         std::to_string(mForcesDoverT[i]) + "," +
+                         std::to_string(mForcesMoverT[i]) + "," +
+                         std::to_string(mForcesTotOverT[i]) + "," +
+                         std::to_string(mImpactsOverT[i]) + "," +
+                         std::to_string(mEtaWaveHeightOverT[i]) + "\n";
+    }
+}
+
+double Morisson::find_time_of_max() {
+    double max = 0;
+    int i = 0;
+    int k = 0;
+    for (k = 0; k < mForcesTotOverT.size(); k++) {
+        if (mForcesTotOverT[k] > max) {
+            max = mForcesTotOverT[k];
+            i = k;
+        }
+    }
+    return (double)(i * mTimestep);
+}
+
+double Morisson::max_impact() {
+    double m = 0;
+    for (auto x : mImpactsOverT) {
+        if (m < x) m = x;
+    }
+    return m;
+}
+
+void Morisson::setImpactAngle(double _ang) { m_impactAngle = _ang; }

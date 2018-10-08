@@ -13,15 +13,18 @@ class Morisson {
     double mNu = 0.000001;
     double mRhoWater = 1026;
     double mTotalHorizontal = 0;
-    double mFD_tot, mFM_tot, mLastTime, mLastPlace, mEtaWaveHeight;
+    double lambda = 0.5;
+    double mFD_tot, mFM_tot, mLastTime, mLastPlace, mEtaWaveHeight,
+        mImpactForce, mt_max, m_impactAngle = -1;
     std::vector<double> mForcesM, mForcesD, mAccelerations, mHorVelocities,
-        mDepths;
+        mDepths, mForcesDM;
     std::string mForcesStringM, mForcesStringD;
     std::string mForcesInTime;
     std::vector<std::string> mCalculationSteps;
     bool mOverTCalcStorage = true;
 
-    std::string mForcesMoverT, mForcesDoverT;
+    std::vector<double> mForcesMoverT, mForcesDoverT, mForcesTotOverT,
+        mImpactsOverT, mEtaWaveHeightOverT;
 
     Morisson();
     Morisson(Pile* _Pile, Wave* _Wave);
@@ -36,6 +39,8 @@ class Morisson {
 
     void calculateCsReynolds();
     void storeCalculation();
+    void adjustCoefficientsForRoughtness();
+    void setTimstepCalcStorage(double _toggle);
 
     void printForcesD();
     void printForcesM();
@@ -48,4 +53,10 @@ class Morisson {
 
     void calculateForcesOverTime(double _startTime, double _endTime, double dz,
                                  double _x = 0);
+
+    void print_timecalculation();
+    void calculateWaveImpact();
+    double find_time_of_max();
+    double max_impact();
+    void setImpactAngle(double _angle);
 };

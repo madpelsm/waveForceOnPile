@@ -24,6 +24,7 @@ void Wave::calculateWaveLength() {
               << std::endl;
     gotWaveLength = true;
     setmaxHorVelocity();
+    setCelerity();
 }
 
 double Wave::getHorizontal(double _depth, double _x, double _t) {
@@ -44,7 +45,7 @@ double Wave::getVertical(double _depth, double _x, double _t) {
 }
 
 double Wave::getHorizontalVelocity(double _depth, double _x, double _t) {
-    return getHorizontal(_depth, _x, _t);
+    return getHorizontal(_depth, _x, _t) + mCurrent;
 }
 double Wave::getVerticalVelocity(double _depth, double _x, double _t) {
     return getVertical(_depth, _x, _t);
@@ -66,7 +67,8 @@ void Wave::setmaxHorVelocity() {
     mMaxHorVelocity = getHorizontalVelocity(mHeight * 0.5);
 }
 void Wave::setPrecision(double _precision) { mPrecision = _precision; }
-void Wave::setCelerity(double _celerity) { mCelerity = _celerity; }
+void Wave::setCelerity() { mCelerity = mWaveLength / mPeriod; }
 void Wave::setHeight(double _height) { mHeight = _height; }
 void Wave::setPeriod(double _period) { mPeriod = _period; }
 void Wave::setWaterDepth(double _waterDepth) { mWaterDepth = _waterDepth; }
+void Wave::setCurrent(double _u) { mCurrent = _u; }

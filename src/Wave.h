@@ -6,14 +6,14 @@
 class Wave {
    public:
     double mCelerity, mHeight, mPeriod, mWaterDepth, mPrecision;
-    double mWaveLength, mMaxHorVelocity;
+    double mWaveLength, mMaxHorVelocity, mCurrent = 0;
 
     bool gotWaveLength = false;
 
     Wave();
     ~Wave();
 
-    void setCelerity(double _celerity);
+    void setCelerity();
     void setHeight(double _height);
     void setPeriod(double _period);
     void setWaterDepth(double _waterDepth);
@@ -29,6 +29,7 @@ class Wave {
                                      double _t = 0);
     double getVerticalAcceleration(double _depth, double _x = 0, double _t = 0);
     double getEta(double _time);
+    void setCurrent(double _u);
 
     double getWaveLength();
     void calculateWaveLength();

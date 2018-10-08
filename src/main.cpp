@@ -11,29 +11,37 @@
 double waveheight = 4, waterdepth = 10, period = 18, precision = 0.00001,
        pilediameter = 3, pileroughness = 0.00001, nu = 0.000001, timestep = 1,
        tstart = 0, tend = 0, dz = 1, xlocation = 0, timeinstant = 6,
-       overTCalcStore = 1;
+       overTCalcStore = 1, currentvelocity = 0, impact_angle = -1.0;
 
-int width = 800, height = 600;
-bool writepermission = 1, GUI = 1;
+int width = 355, height = 600;
+bool writepermission = 1, GUI = 1, with_impact = true;
 void updateParams(Wave *w, Pile *p, Morisson *m) {
     w->setHeight(waveheight);
     w->setWaterDepth(waterdepth);
     w->setPeriod(period);
     w->setPrecision(precision);
     p->setSurfaceRoughness(pileroughness);
+    p->setDiameter(pilediameter);
     w->calculateWaveLength();
+    w->setCurrent(currentvelocity);
     m->setNu(nu);
+    m->setImpactAngle(impact_angle);
     m->setTimestep(timestep);
+    m->setTimstepCalcStorage(overTCalcStore);
 }
 void setParameter(std::string _input) {
     std::string param = _input.substr(0, _input.find("="));
     double argument = std::atof(_input.substr(_input.find("=") + 1).c_str());
-    std::vector<std::string> validCommands = {
-        "waveheight",   "waterdepth",    "period", "precision",
-        "pilediameter", "pileroughness", "nu",     "timestep",
-        "tstart",       "tend",          "dz",     "xlocation",
-        "timeinstant",  "height",        "width",  "writepermission",
-        "GUI"};
+    std::vector<std::string> validCommands = {"waveheight",   "waterdepth",
+                                              "period",       "precision",
+                                              "pilediameter", "pileroughness",
+                                              "nu",           "timestep",
+                                              "tstart",       "tend",
+                                              "dz",           "xlocation",
+                                              "timeinstant",  "height",
+                                              "width",        "writepermission",
+                                              "GUI",          "currentvelocity",
+                                              "impact_angle"};
     if (std::find(validCommands.begin(), validCommands.end(), param) !=
         validCommands.end()) {
         PARAM(waveheight);
@@ -53,6 +61,8 @@ void setParameter(std::string _input) {
         PARAM(width);
         PARAM(writepermission);
         PARAM(GUI);
+        PARAM(currentvelocity);
+        PARAM(impact_angle);
         printf("set %s to %f\n", param.c_str(), argument);
     }
 
@@ -88,9 +98,10 @@ int main(int argc, char *argv[]) {
     Variable waveT("period", &period);
     Variable waveP("precision", &precision);
     Variable visco("nu", &nu);
+    Variable currentVel("Current [m/s]", &currentvelocity);
 
-    std::vector<Variable *> waveVars = {&waveH, &waterD, &waveT, &waveP,
-                                        &visco};
+    std::vector<Variable *> waveVars = {&waveH, &waterD, &waveT,
+                                        &waveP, &visco,  &currentVel};
     waves.addVariables(&waveVars);
 
     ge1.addPanel(&waves);
@@ -98,7 +109,7 @@ int main(int argc, char *argv[]) {
     // Pile info
     Panel piles("pile information");
 
-    piles.setPanelPosition(0, 415);
+    piles.setPanelPosition(0, 450);
     Variable PileD("pilediameter", &pilediameter);
     Variable PileR("pileroughness", &pileroughness);
 
@@ -111,7 +122,7 @@ int main(int argc, char *argv[]) {
     // calculation settings
     Panel calcSettings("Calculation Settings");
 
-    calcSettings.setPanelPosition(0, 180);
+    calcSettings.setPanelPosition(0, 200);
     Variable timeStep("timestep", &timestep);
     Variable tStrt("start time", &tstart);
     Variable tEndt("end time", &tend);
@@ -119,11 +130,11 @@ int main(int argc, char *argv[]) {
     Variable xlo("x location", &xlocation);
     Variable Tinstant("Time point", &timeinstant);
     Variable IntervalCalcStore("Store dt calcs", &overTCalcStore);
+    Variable impactAngle("impact angle (deg)", &impact_angle);
 
-    std::vector<Variable *> calcVars = {&timeStep,         &tStrt, &tEndt,
-                                        &stepSize,         &xlo,   &Tinstant,
-                                        &IntervalCalcStore};
-
+    std::vector<Variable *> calcVars = {
+        &timeStep,          &tStrt,      &tEndt, &stepSize, &xlo, &Tinstant,
+        &IntervalCalcStore, &impactAngle};
     calcSettings.addVariables(&calcVars);
     ge1.addPanel(&calcSettings);
     //  now triggered by button
@@ -131,7 +142,6 @@ int main(int argc, char *argv[]) {
     simpleCalc.setPosition(170, 0);
 
     ge1.addButtonPanel(&simpleCalc);
-    // simpleCalc.buttonHelp->addButton("test", []() {});
 
     ge1.makeGUIWindow();
     printf("value of calcstore: %f\n", overTCalcStore);
