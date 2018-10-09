@@ -62,11 +62,10 @@ void setParameter(std::string _input) {
 }
 
 int main(int argc, char *argv[]) {
+    parameters["GUI"] = GUI;//strt with default =1
     for (size_t i = 0; i < argc; i++) {
         setParameter(argv[i]);
     }
-    // default load file
-    //
     if (argc > 1) {
         Loader *dr = new Loader(defaultsave);
         dr->parseData();
@@ -196,7 +195,7 @@ int main(int argc, char *argv[]) {
     });
 
     // make window
-    if (parameters["GUI"] == 1) {
+    if (parameters["GUI"] != 0) {
         ge1.startLoop();
     }
     updateParams(wave, pile, morisson1);
