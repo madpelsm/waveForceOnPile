@@ -62,7 +62,6 @@ void setParameter(std::string _input) {
 }
 
 int main(int argc, char *argv[]) {
-    parameters["GUI"] = GUI;
     for (size_t i = 0; i < argc; i++) {
         setParameter(argv[i]);
     }
@@ -77,6 +76,7 @@ int main(int argc, char *argv[]) {
         height = parameters["height"] > 0 ? parameters["height"] : height;
         printf("Arguments detected\n");
     }
+    parameters["GUI"] = GUI;
     for (size_t i = 0; i < argc; i++) {
         setParameter(argv[i]);
     }
