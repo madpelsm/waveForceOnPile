@@ -62,6 +62,7 @@ void setParameter(std::string _input) {
 }
 
 int main(int argc, char *argv[]) {
+    parameters["GUI"] = GUI;
     for (size_t i = 0; i < argc; i++) {
         setParameter(argv[i]);
     }
@@ -196,7 +197,7 @@ int main(int argc, char *argv[]) {
     });
 
     // make window
-    if (parameters["GUI"] != 0) {
+    if (parameters["GUI"] == 1) {
         ge1.startLoop();
     }
     updateParams(wave, pile, morisson1);
